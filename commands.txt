@@ -1,0 +1,176 @@
+docker version
+docker info - ile mam kontenerow, obrazow itd.
+docker - lista komend
+ - komendy zwykle np. docker run
+ - rodziny komend (management commands) np. docker container run
+  
+docker container --help
+ ----------------------------- TEORIA ----------------------------------------
+kontener vs obraz
+image - aplikacja ktora chcemy odpalic
+kontnener - uruchomiona instancja obrazu
+
+kontener to nie `mini maszyna wirtualna` - to tylko proces na hoscie. ograniczone resourcy
+
+
+registry - repozytoria na kontenery, dockerhub default
+
+robiac docker container run pod spodem:
+-pobiera image (jesli nie ma w cache)
+-odpala kontener
+-nadaje wirtualny IP w silniku dockera, otwiera porty
+
+-----------------------------  RUN  ----------------------------------------------------
+docker container run --publish 80:80 nginx
+publish (-p) - pierwszy  - ktory port na hoscie(pierwszy) i routuje ruch do drugiego - to jest port w kontenerze. http://localhost/ otworzy
+format zawsze HOST:CONTAINER
+--detach - kontener w tle
+
+docker ps/docker container ls - lista
+-a w obu - wszystkie
+docker container stop <containerId> - pierwsze cyfry
+
+
+docker container run --publish 80:80 --detach --name <mojanazwa> nginx
+docker container run --publish 80:80 -d --name <mojanazwa> nginx
+docker container run --publish 80:80 --rm  nginx - usunie kontener od razu po wyjsciu
+
+docker container run --publish 80:80 -d --name <mojanazwa> -e MOJA_ZMIENNA_SRODOWISKOWA=yes nginx
+docker container run --publish 80:80 -d --name <mojanazwa> --env MOJA_ZMIENNA_SRODOWISKOWA=yes nginx
+docker container run --publish 3306:3306 -d --env MYSQL_RANDOM_ROOT_PASSWORD=admin123 --name mojmysql mysql:1.15.3
+http://localhost:3306/
+
+
+docker container logs <mojanazwa>
+docker log
+docker container top <mojanazwa> - process ID, proces latajacy w kontenerze
+docker top <nazwa>
+
+(container ids tutaj):
+docker container rm e17 ea2 a54
+docker container rm -f e17 ea2 a54 - usunie uruchomione
+docker rm -f e17 ea2 a54
+docker conteiner stop
+
+------------------------- MONITORING  ----------------------------------------------
+docker image ls
+docker container top - procesy w kontenerze
+docker container inspect - szczegoly konfigu kontenera
+docker container inspect --format '{{.NetworkSettings.IPAddress}}' mojnginx
+docker container stats - cpu, ram, net IO itd.
+docker container logs
+
+--------------------------URUCHAMIANIE, UZYTKOWANIE -------------------------------------
+docker container run -it - tworzy nowy kontener w trybie interaktywnym  (t - pseudo tty -prompt + i- interactive)
+docker container exec -it - interaktywny w istniejacym kontenerze. Dodatkowy proces w kontenerze - kontener zyje poki proces trwa. dobre jak mamy obraz i chcemy go uruchomic
+docker container exec -it mojlinux bash
+run i exit wylaczy kontener. exec i exit zostawi go zywego
+
+docker container run -it --name mojnginx nginx bash
+docker container run -it --name mojlinux ubuntu bash
+docker container start <nazwa> uruchamia istniejacy (ale zastopowany) kontener 
+
+alpine - malutka (3MB) wersja linuxa, nie ma basha, ma sh
+
+
+docker image prune - wiszace obrazy
+docker system prune czysci wszystko
+
+---------------------------- NETWORKING -------------------------------------------------------
+docker container port <kontener> - jakie porty (skad z hosta do kontenera). Port jest do komunikacji ze swiatem
+docker ma prywatna siec wirtualna, most. mozna laczyc kontenery wieloma wirtualnymi sieciami/zadnymi
+bridge - wirtualna siec prywatna - jest domyslnym driverem. Mozna tez bezposrednio kontener do hosta! Szybciej, ale security
+
+kontenery w sieci wirtualnej moga gadac ze soba
+docker container inspect --format '{{.NetworkSettings.IPAddress}}' mojnginx - adres ip w sieci prywatnej
+docker network ls
+docker network inspect - mozna poszukac sieci do ktorej podlaczony jest kontener (z container inspect)
+docker network create --driver - tworzenie sieci
+docker network connect
+
+nie da sie sensownie korzystac z IP w kontenerze, jest zbyt dynamicznie. 
+docker korzysta DNSa - nazwa kontenera wystarcza
+
+---------------------------- OBRAZY -------------------------------------------------
+obraz to nie caly OS, nie ma kernela i driverow. Sa binarki, ktore sa niezbedne do odpalenia aplikajci.
+kernel daje host. nie wstaje caly OS.
+
+warstwy - kazda kolejna zmiana jest warstwa na oryginalnym obrazie. zmiany na filesystemie w obrazie
+docker history <imageName> - historia wartst, zmian w obrazie
+warstwy sa pocachowane, wiec oszczedzamy miejsce
+jesli jest wspolna baza warstw, to nie sa kopiowane, sa reuzywane.
+copy on write - jesli zmienie cos w obrazie, to bedzie to przechowane w konkretnej instacji (diff).
+znow oszczedzamy miejsce
+
+docker image inspect - metadane, wartswy obrazu itd.
+
+tag - obrazy nie maja nazwy, imageId to hash, ciezko zapamietac. odniesienie do konkretnego commita w repo obrazow,
+labelka ktora wskazuje na imageId, moze byc wiele tagow na jeden imageId.
+
+--------------------------------- DOCKERFILE --------------------------------------------
+przepis na image. kazda linijka to warstwa
+docker build -f nazwadokerfajla
+docker image build .
+
+FROM debian:jessie
+ENV ZMIENNA_SRODOWISKOWA mojawartosc
+RUN apt-get update \
+   && echo 'costam' \
+   && apt-get install
+ chainowanie komend, chcemy tego runa w jednej warstwie!
+EXPOSE 80 443 - to co innego niz publikowanie - nie wiadomo czy porty beda otwarte na hoscie
+WORKDIR /usr/share/nginx/html - dobra praktyka
+COPY index.html index.html
+CMD ["nginx", "-g", "daemon.off"] - bedzie uruchomione za kazdym runem/restartem!
+wymagane, ale czesto jest juz w FROM z ktorego bierzemy obraz
+
+docker image build -t mojobrazoginxa .
+dajemy tag i bierzemy dockerfile  o nazwie Dockerfile z biezacego katalogu
+ewentualne zmiany w dockerfile beda odzwierciedlone, reszta z kesza
+
+to bedzie w docker image ls, trzeba odpalic to docker container run
+
+rzeczy ktore sie nie zmieniaja na gorze dockerfile, zmienne na dole. Dzieki temu warstwy bedza lepiej keszowane
+
+------------------------STORAGE, VOLUMES ------------------------------
+docker sam w sobie jest temporary i immutable.
+zeby np. baza danych dzialala trzeba dac warstwe persystencji
+
+2 metody:
+data volume - lokalizacja poza kontenerem, na ktorej sobie kontener dziala
+bind mount - wspoldizelone miejsce miedzy kontenerem a hostem (plik,katalog etc.)
+
+DATA VOLUMES:
+mozna w cotainer run -v dodac volume
+w dockerfile:
+VOLUME /var/lib/dane - ta lokalizacja bedzie persystowana az do usuniecia recznie(!) wolumenu
+lokalizacja jest na hoscie i wewnetrznie mapowana do kontenera
+w container inspect mozna podejrzec gdzie sa te dane
+docker volume prune - usuwanie
+docker volume ls
+
+docker volume create - mozna nawet drivery inne dawac
+najlepiej chyba w dockerfile
+
+BIND MOUNTING:
+mapuje plik/folder hosta do kontenera. mapping live, zmiany na hoscie sa od razu widoczne w kontenerze
+nie mozna w dockerfile, tylko container run -v / <- slash na poczatku oznacza bind. na windows //
+
+------------------------------ DOCKER COMPOSE -----------------------------------------
+polaczenie cmd i dockerfile
+konfiguracja w yaml. Fajne do laczenia kontenerow w jedna solucje, bez pamietania wszystkich docker run, expose co trzeba, jeden run.
+odpalanie z cli - docker-compose
+w yml 2 lub 4 spacje
+docker-compose up - stawia wszystko
+down - sprzata
+
+
+
+
+
+
+
+
+
+
+

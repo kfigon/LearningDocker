@@ -1,0 +1,12 @@
+version: '3.7' # wersja docker-compose
+
+services:
+  linux:
+    image: ubuntu
+
+    tty: true
+
+    volumes:
+      - type: bind
+        source: //d/git/learningDocker/dockercompose-demo/vol
+        target: /usr/local/bin
