@@ -1,6 +1,6 @@
-https://github.com/osixia/docker-phpLDAPadmin
-
 https://github.com/osixia/docker-openldap
+
+https://github.com/osixia/docker-phpLDAPadmin
 
 ## Usage:
 * setup: `docker-compose up -d `
