@@ -1,0 +1,12 @@
+# first run, setup:
+docker run --name myjenkins -p 8080:8080 -p 50000:50000 jenkins/jenkins 
+96f39487b6e54f36a5a7a98bf18ac5d0
+
+
+# start with this:
+docker start myjenkins
+
+login:pass
+admin/admin
+
+admin@admin.pl
